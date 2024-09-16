@@ -1,40 +1,62 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
 
-const SeatBook = ({ groupName, initialCapacity }) => {
-  const [capacity, setCapacity] = useState(initialCapacity);
+const socket = io("http://localhost:3000"); // Connect to the server
 
-  const handleBook = () => {
-    if (capacity > 0) {
-      setCapacity(capacity - 1);
-    } else {
-      alert(`No seats available in ${groupName}!`);
-    }
+const SeatBook = () => {
+  const [seatGroups, setSeatGroups] = useState([]);
+
+  useEffect(() => {
+    // Listen for seat status updates
+    socket.on("seatStatus", (updatedSeatGroups) => {
+      setSeatGroups(updatedSeatGroups);
+    });
+
+    return () => {
+      socket.off("seatStatus");
+    };
+  }, []);
+
+  const handleBookSeat = (groupId, seatIndex) => {
+    // Emit an event to book the seat
+    socket.emit("bookSeat", { groupId, seatIndex });
   };
 
+  const isSeatAvailable = (seats) => seats.some((seat) => !seat);
+
   return (
-    <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-md w-64 text-center">
-      <p className="text-lg font-semibold mb-2">Seat book {groupName}</p>
-      <p className="text-md mb-4">Seat Capacity: {capacity}</p>
-      <button
-        onClick={handleBook}
-        className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition"
-      >
-        Book
-      </button>
+    <div>
+      <h1>Real-time Seat Booking</h1>
+      {seatGroups.length === 0 ? (
+        <p>Loading seat groups...</p>
+      ) : (
+        seatGroups.map((group) => (
+          <div key={group.group} style={{ margin: "20px 0" }}>
+            <h2>Group {group.group}</h2>
+            <div style={{ display: "flex", gap: "10px" }}>
+              {group.seats.map((seat, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleBookSeat(group.group, index)}
+                  disabled={seat}
+                  style={{
+                    backgroundColor: seat ? "red" : "green",
+                    padding: "10px",
+                    cursor: seat ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {seat ? `Seat ${index + 1} (Booked)` : `Seat ${index + 1}`}
+                </button>
+              ))}
+            </div>
+            {!isSeatAvailable(group.seats) && (
+              <p>No seats available in this group.</p>
+            )}
+          </div>
+        ))
+      )}
     </div>
   );
 };
 
-const SeatBookGroups = () => {
-  const groups = Array.from({ length: 10 }, (_, i) => `Group ${i + 1}`);
-
-  return (
-    <div className="flex flex-wrap gap-6 p-6 justify-center">
-      {groups.map((group, index) => (
-        <SeatBook key={index} groupName={group} initialCapacity={6} />
-      ))}
-    </div>
-  );
-};
-
-export default SeatBookGroups;
+export default SeatBook;
