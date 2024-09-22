@@ -15,26 +15,28 @@ const EmailForm = () => {
   } = useForm();
 
   const onSubmit = async (data) => {
-    const recipientsArray = data.recipients.split(";");
-    if (recipientsArray.length > 500) {
+    const recipientsArray = data.recipients
+      .split(";")
+      .map((email) => email.trim()); // Trim whitespace
+    if (recipientsArray.length === 0) {
       setError("recipients", {
         type: "manual",
-        message: "You cannot submit more than 500 recipients.",
+        message: "Please enter at least one recipient.",
       });
-    } else {
-      clearErrors("recipients");
-      setIsLoading(true);
-      try {
-        const response = await axios.post("http://localhost:3000/api/contact", {
-          recipients: recipientsArray,
-          message: data.message,
-        });
-        toast.success(response.data.message);
-      } catch (error) {
-        toast.error("Error sending emails");
-      } finally {
-        setIsLoading(false);
-      }
+      return; // Prevent further execution
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await axios.post("http://localhost:3000/api/contact", {
+        recipients: recipientsArray,
+        message: data.message,
+      });
+      toast.success(response.data.message);
+    } catch (error) {
+      toast.error("Error sending emails");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -49,7 +51,7 @@ const EmailForm = () => {
             className="textarea textarea-bordered"
             type="text"
             name="message"
-            placeholder="message"
+            placeholder="Message"
             {...register("message", { required: true })}
           ></textarea>
           {errors.message && <span>This field is required</span>}
@@ -62,7 +64,7 @@ const EmailForm = () => {
             className="textarea textarea-bordered"
             type="text"
             name="recipients"
-            placeholder="recipients"
+            placeholder="Recipient emails separated by semicolon (;) "
             {...register("recipients", { required: true })}
           ></textarea>
           {errors.recipients && (
